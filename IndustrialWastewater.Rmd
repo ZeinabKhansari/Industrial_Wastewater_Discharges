@@ -1,0 +1,866 @@
+---
+output:
+  bookdown::html_document2:
+   toc: TRUE
+   toc_depth: 3
+   toc_float: TRUE
+   theme: readable
+   highlight: tango
+   
+---
+
+<center>
+<h1> 
+Integration of Artificial Intelligence into Wastewater Treatment Modeling
+</h1>
+</center>
+<br>
+<center>
+<h3> 
+Student name and ID: Zeinab Khansari, 501076000 <br>
+Supervisor: Dr. Tamer Abdou
+
+</h3>
+</center>
+<br>
+<br>
+<center>
+<h4> 
+Capstone Project on Ontario Ministry of the Environment, Conservation and Parks<br>
+Industrial Wastewater Discharges (MISA dataset)
+</h4>
+</center>
+<br>
+<center>
+<h4> 
+`r format(Sys.time(), "%d %B, %Y")`
+</h4>
+</center>
+
+<br>
+
+***
+
+<br>
+# Installing libraries and setting directory
+```{r, message=FALSE, warning=FALSE}
+
+library(lubridate)
+library(EnvStats)
+library(tidyr)
+library(pillar)
+library(stringi)
+library(readr)
+library(tidyverse)
+library(purrr)
+library(plyr)
+library(tibble)
+library(rlang)
+library(readxl)
+library(anytime)
+library(ggplot2)
+library(devtools)
+library(ggpubr)
+library(reshape2)
+library(dplyr)
+library(Hmisc)
+library(outliers)
+library(magrittr)
+library(mlbench)
+library(caret)
+library(stats)
+library(corrplot)
+library(TH.data)
+library(Boruta)
+library(MTS)
+library(corrplot)
+library(mice)
+library(VIM)
+library(missRanger)
+library(caTools)
+library(FSinR)
+library(olsrr)
+library(knitr)
+
+options(stringAsFactors=FALSE, warnings=FALSE)
+
+setwd("/Users/zeinabkhansari/Desktop/Capstone")
+```
+
+# Reading files and combining scattered data in one dataset
+```{r, message=FALSE, warning=FALSE}
+
+d1 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2004.xls")
+d2 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2005.xls")
+d3 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2006.xls") 
+d4 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2007.xls")
+d5 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2008.xls") 
+d6 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2009.xls")  
+d7 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2010.xls")
+d8 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2011.xls")
+d9 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2012.xls")
+d10 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2013.xlsx")
+d11 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2014.xlsx")
+d12 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2015.xlsx")
+d13 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2016.xlsx")
+d14 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2017.xlsx")
+d15 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2018.xlsx")
+d16 <- read_excel("/Users/zeinabkhansari/Desktop/Capstone/MISA_2019.xlsx")
+
+```
+# Preprocessing (renaming, swiching attributes locations, dealing with data type/class, unifiyng the date data, etc., etc.)
+```{r, message=FALSE, warning=FALSE}
+
+# Let's take a look at each individual dataset (excel file)
+# removing extra column from d1
+d1 <- d1[,-16]
+
+# d9 has only month and year with no date
+# adding date to month and year to uniform the date format
+d9$DAY <- "01"
+d9$Date <- as.Date(with(d9, paste(YEAR, MONTH, DAY,sep="-")), "%Y-%m-%d")
+
+
+# names(d1)
+# names(d2)
+# names(d3)
+# columns' names are not consistent throughout the excel files
+# changing names of some columns to keep them consistent with others
+colnames(d3)[5] <- "Date"
+colnames(d3)[1] <- "Sector"
+
+# names(d4)
+# names(d5)
+# names(d6)
+# names(d7)
+# names(d8)
+
+# renaming d8 attributes to keep the consistency throughout the whole dataset
+colnames(d8)[1] <- "Sector" 
+colnames(d8)[2] <- "Works Name"
+colnames(d8)[3] <- "Company Code" 
+colnames(d8)[4] <- "Municipality"
+colnames(d8)[5] <- "Date"
+colnames(d8)[6] <- "Control Point ID"
+colnames(d8)[7] <- "Control Point Name"
+colnames(d8)[8] <- "Parameter Name"
+colnames(d8)[9] <- "Parameter Reported As"
+colnames(d8)[10] <- "Result Structure"
+colnames(d8)[11] <- "Component Type" 
+colnames(d8)[12] <- "Frequency" 
+colnames(d8)[13] <- "Value"
+colnames(d8)[14] <- "Unit of Measure"
+colnames(d8)[15] <- "Regulation" 
+
+# also, the order of columns differ throughout the dataset between excel files
+# changing the order of columns to make them comparable and consistent with the rest of the dataset
+d8 <- d8[,c(1, 2, 3, 4, 5, 7, 6, 8, 9, 12, 10, 11, 13, 14, 15)]
+
+
+# names(d9)
+
+# renaming the d9 attributes
+
+colnames(d9)[1] <- "Sector"
+colnames(d9)[2] <- "Works Name"
+colnames(d9)[3] <- "Company Code" 
+colnames(d9)[4] <- "Municipality" 
+colnames(d9)[7] <- "Control Point ID"
+colnames(d9)[8] <- "Control Point Name"
+colnames(d9)[9] <- "Parameter Name"
+colnames(d9)[10] <- "Parameter Reported As"
+colnames(d9)[11] <- "Result Structure"
+colnames(d9)[12] <- "Component Type"
+colnames(d9)[15] <- "Unit of Measure"
+
+# changing the columns' order
+d9 <- d9[, -c(5, 6, 17)]
+d9 <- d9[, c(1, 2, 3, 4, 15, 6, 5, 7, 8, 11, 9, 10, 12, 13, 14)]
+
+colnames(d9)[10] <- "Frequency"
+colnames(d9)[13] <- "Value"  
+colnames(d9)[15] <- "Regulation" 
+
+# names(d10)
+
+# changing the names
+colnames(d10)[1] <- "Sector"
+colnames(d10)[5] <- "Date"
+
+# names(d11)
+
+colnames(d11)[5] <- "Date"
+colnames(d11)[1] <- "Sector"
+
+# names(d12)
+
+colnames(d12)[5] <- "Date"
+colnames(d12)[1] <- "Sector"
+
+# names(d13)
+
+colnames(d13)[5] <- "Date"
+colnames(d13)[1] <- "Sector"
+
+# names(d14)
+# names(d15)
+# names(d16)
+
+colnames(d14)[1] <- "Sector"
+colnames(d14)[2] <- "Works Name"
+colnames(d14)[3] <- "Company Code" 
+colnames(d14)[4] <- "Municipality" 
+colnames(d14)[5] <- "Date"
+colnames(d14)[6] <- "Control Point ID"
+colnames(d14)[7] <- "Control Point Name"
+colnames(d14)[8] <- "Parameter Name"
+colnames(d14)[9] <- "Parameter Reported As"
+colnames(d14)[10] <- "Frequency"
+colnames(d14)[11] <- "Result Structure"
+colnames(d14)[12] <- "Component Type"
+colnames(d14)[13] <- "Value"
+colnames(d14)[14] <- "Unit of Measure"
+colnames(d14)[15] <- "Regulation"
+
+colnames(d15)[1] <- "Sector"
+colnames(d15)[2] <- "Works Name"
+colnames(d15)[3] <- "Company Code" 
+colnames(d15)[4] <- "Municipality" 
+colnames(d15)[5] <- "Date"
+colnames(d15)[6] <- "Control Point ID"
+colnames(d15)[7] <- "Control Point Name"
+colnames(d15)[8] <- "Parameter Name"
+colnames(d15)[9] <- "Parameter Reported As"
+colnames(d15)[10] <- "Frequency"
+colnames(d15)[11] <- "Result Structure"
+colnames(d15)[12] <- "Component Type"
+colnames(d15)[13] <- "Value"
+colnames(d15)[14] <- "Unit of Measure"
+colnames(d15)[15] <- "Regulation"
+
+colnames(d16)[1] <- "Sector"
+colnames(d16)[2] <- "Works Name"
+colnames(d16)[3] <- "Company Code" 
+colnames(d16)[4] <- "Municipality" 
+colnames(d16)[5] <- "Date"
+colnames(d16)[6] <- "Control Point ID"
+colnames(d16)[7] <- "Control Point Name"
+colnames(d16)[8] <- "Parameter Name"
+colnames(d16)[9] <- "Parameter Reported As"
+colnames(d16)[10] <- "Frequency"
+colnames(d16)[11] <- "Result Structure"
+colnames(d16)[12] <- "Component Type"
+colnames(d16)[13] <- "Value"
+colnames(d16)[14] <- "Unit of Measure"
+colnames(d16)[15] <- "Regulation"
+
+
+# adjusting the date data format throughout the whole dataset
+
+d1$Date <- anydate(d1$Date)
+d2$Date <- anydate(d2$Date)
+d3$Date <- anydate(d3$Date)
+d4$Date <- anydate(d4$Date)
+d5$Date <- anydate(d5$Date)
+d6$Date <- anydate(d6$Date)
+d7$Date <- anydate(d7$Date)
+d8$Date <- anydate(d8$Date)
+d9$Date <- anydate(d9$Date)
+d10$Date <- anydate(d10$Date)
+d11$Date <- anydate(d11$Date)
+d12$Date <- anydate(d12$Date)
+d13$Date <- anydate(d13$Date)
+d14$Date <- anydate(d14$Date)
+d15$Date <- anydate(d15$Date)
+d16$Date <- anydate(d16$Date)
+
+
+# changing the data class from character and binary to numeric
+
+d1$Value <- as.numeric(d1$Value)
+d2$Value <- as.numeric(d2$Value)
+d3$Value <- as.numeric(d3$Value)
+d4$Value <- as.numeric(d4$Value)
+d5$Value <- as.numeric(d5$Value)
+d6$Value <- as.numeric(d6$Value)
+d7$Value <- as.numeric(d7$Value)
+d8$Value <- as.numeric(d8$Value)
+d9$Value <- as.numeric(d9$Value)
+d10$Value <- as.numeric(d10$Value)
+d11$Value <- as.numeric(d11$Value)
+d12$Value <- as.numeric(d12$Value)
+d13$Value <- as.numeric(d13$Value)
+d14$Value <- as.numeric(d14$Value)
+d15$Value <- as.numeric(d15$Value)
+d16$Value <- as.numeric(d16$Value)
+
+
+# phewwww! now all excel files can get merged together safely! :D
+# merging all data into two dataset -- dd will be the dataset for further analysis and creating the model
+
+dd <- bind_rows(d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, d16)
+names(dd)
+```
+
+# Exploring NAs and NA ratio to total observation
+```{r, message=FALSE, warning=FALSE}
+# counting the number of NAs in the dataset
+cat("The total counts for NAs: ", sum(is.na(dd)), "\n")
+cat("The total number of non-NAs: ", sum(!is.na(dd)), "\n")
+cat("The ratio of NAs/Total observations: ", sum(is.na(dd))/(sum(is.na(dd))+sum(!is.na(dd))))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+# eliminating the NAs
+dd <- drop_na(dd)
+```
+Since NAs are less than one percent of the total count of observations, I've decided to remove them instead of replacing them with mean, interpolation, etc.
+
+# The original structure of the dataset
+```{r, message=FALSE, warning=FALSE}
+str(dd)
+```
+```{r, message=FALSE, warning=FALSE}
+head(dd, 10)
+```
+```{r, message=FALSE, warning=FALSE}
+# name of the parameters included in dataset
+unique(dd$`Parameter Name`)
+```
+
+Some of the above parameters are reported as the below parameters and most of them haven't been reported as specific parameters.
+For the purpose of visualization, let's take a look as "Parameter Reported As":
+```{r, message=FALSE, warning=FALSE}
+# what are these parameters reported as
+unique(dd$`Parameter Reported As`)
+```
+
+So, we have 66 parameters to work with!
+Some of them pointing to the same character such as O and OXYGEN, or C and CARBON, and some can be ignored (including NOT APPLICABLE, NOT APPL, AT 25 DEG. C)
+```{r, message=FALSE, warning=FALSE}
+# subset the waste reported as a target parameter to make sure using the correct attribute
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS O"))
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS OXYGEN"))
+```
+These two parameters point to the same thing and can be used interchangeably (needs to use or when needed to call any of them to include them both).
+Great! So, by choosing "Parameter Reported As" we're on the right track! 
+
+
+```{r, message=FALSE, warning=FALSE}
+# subset the waste reported as a target parameter to make sure using the correct attribute
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS HCN"))
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS HYDROGEN CYANIDE"))
+```
+So, these two "As Reported" factors are the same sort of waste too!
+```{r, message=FALSE, warning=FALSE}
+# subset the waste reported as a target parameter to make sure using the correct attribute
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS H2S"))
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS SULPHIDE" ))
+```
+
+Also, these two!
+
+```{r, message=FALSE, warning=FALSE}
+# subset the waste reported as a target parameter to make sure using the correct attribute
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS SO4"))
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS SULPHATE"))
+```
+And these two!
+
+
+```{r, message=FALSE, warning=FALSE}
+# what are waste reported as C and as CARBON
+# subset the waste reported as a target parameter to make sure using the correct attribute
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS CARBON"))
+unique(subset(dd$`Parameter Name`, dd$`Parameter Reported As`=="AS C"))
+```
+SO, these two parameters point to the same thing and can be used interchangeably (needs to use or when needed to call any of them to include them both).
+```{r, message=FALSE, warning=FALSE}
+# the nature of factories/companies producing these wastes
+unique(dd$`Sector`)
+```
+# A bit of Visualization on the original dataset
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# now let's take a look at geographical (minicipality-wise) distribution of waste
+d_asO = subset(dd, dd$`Parameter Reported As`=="AS O" |dd$`Parameter Reported As`=="AS OXYGEN")
+ggplot(data=d_asO, aes(y=d_asO$Value, x=d_asO$Municipality)) + geom_point(alpha = 0.6, aes(color = Sector))+ theme_bw() +ylab("BOD (Kg/Day)") +xlab("Municipality")+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+So, it seems that Terrace Bay, Thunder Bay, Espanola, and Fort Frances produce the most discharges in terms of BOD within their Pulp and paper industries!
+<br>
+I'll do the same to visualize some other key industrial wastes across municipalities
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# now let's take a look at geographical (minicipality-wise) distribution of waste
+d_asC = subset(dd, dd$`Parameter Reported As`=="AS C" | dd$`Parameter Reported As`=="AS CARBON")
+ggplot(data=d_asC, aes(y=d_asC$Value, x=d_asC$Municipality)) + geom_point(alpha = 0.6, aes(color = Sector))+ theme_bw() +ylab("Dissolved Carbon (Kg/Day)") +xlab("Municipality")+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+Using this strategy it's clear that which municipality has to deal with what sort of industrial wastes as well as how much the problem of discharge can be an issue!
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# now let's take a look at geographical (minicipality-wise) distribution of waste
+d_asH2S = subset(dd, dd$`Parameter Reported As`=="AS H2S")
+ggplot(data=d_asH2S, aes(y=d_asH2S$Value, x=d_asH2S$Municipality)) + geom_point(alpha = 0.6, aes(color = Sector))+ theme_bw() +ylab("H2S (Kg/Day)") +xlab("Municipality")+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+
+Unfortunately, Sarnia produces a huge amount of H2S...
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# now let's take a look at geographical (minicipality-wise) distribution of waste
+d_asN = subset(dd, dd$`Parameter Reported As`=="AS N" | dd$`Parameter Reported As`=="AS NITROGEN")
+ggplot(data=d_asN, aes(y=d_asN$Value, x=d_asN$Municipality)) + geom_point(alpha = 0.6, aes(color = Sector))+ theme_bw() +ylab("Dissolved Nitogen (Kg/Day)") +xlab("Municipality")+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+Seems like there is a serious outlier reported for Nitrogen at St. Clair TWP
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# now let's take a look at geographical (minicipality-wise) distribution of waste
+d_asC = subset(dd, dd$`Parameter Reported As`=="AS C" | dd$`Parameter Reported As`=="AS CARBON")
+ggplot(data=d_asC, aes(y=d_asC$Value, x=d_asC$Municipality)) + geom_point(alpha = 0.6, aes(color = Sector))+ theme_bw() +ylab("Dissolved Carbon (Kg/Day)") +xlab("Municipality")+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+
+Since there are different naming have been applied to the same sort of industrial waste, I rename them. This unifies the observations records and also reduces the number of factors; industrial discharge/chemicals in wastewater.
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE}
+dd$`Parameter Reported As` <- gsub("PHENOL",  "X8", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("NOT APPLICABLE",  "NOT APPL", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AT 25 DEG. C",  "NOT APPL", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS NITROGEN",  "X1", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS N",  "X1", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS OXYGEN", "X2", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS O", "X2", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS HCN", "X3", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS HYDROGEN CYANIDE", "X3", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS SULPHIDE", "X4", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS H2S", "X4", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS PHOSPHORUS", "X5", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS P", "X5", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS CARBON", "X6", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS C", "X6", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS SULPHATE", "X7", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS SO4", "X7", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS X8", "X8", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("AS ARSENIC", "ARSENIC", dd$`Parameter Reported As`)
+unique(dd$`Parameter Reported As`)
+```
+
+Very good!
+Now, let's choose a name that makes more sence for each!
+```{r, message=FALSE, warning=FALSE}
+dd$`Parameter Reported As` <- gsub("X1", "NITROGEN", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X2", "OXYGEN", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X3", "HYDROGEN CYANIDE", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X4", "H2S", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X5", "PHOSPHORUS", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X6", "CARBON", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X7", "SO4", dd$`Parameter Reported As`)
+dd$`Parameter Reported As` <- gsub("X8", "PHENOL", dd$`Parameter Reported As`)
+
+unique(dd$`Parameter Reported As`)
+```
+Great!
+
+# Exploring outliers using two methods: z-score and boxplot
+Now, let's explore the **outliers** for each reported parameter using Z-Score:
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for NITROGEN
+a <- subset(dd$Value, dd$`Parameter Reported As`=="NITROGEN")
+z <- a %>% scores(type ="z")
+outliers <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="NITROGEN")
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") + xlab("Sector") + theme(axis.text.x = element_blank())
+```
+visualization helps to remove with confidence the max of outiers as it is only one record and the gap between other data points and that particular outlier, suggest that there was a mistake putting that number in there.
+
+```{r, message=FALSE, warning=FALSE}
+dd <- subset(dd, dd$Value !="70804.3")
+
+```
+Now, let's explore the Nitrogen outliers again
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for NITROGEN
+a <- subset(dd$Value, dd$`Parameter Reported As`=="NITROGEN")
+z <- a %>% scores(type ="z")
+outliers_NITROGEN <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="NITROGEN")
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+
+Awesome! Now it makes more sense!
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for CARBON
+a <- subset(dd$Value, dd$`Parameter Reported As`=="CARBON")
+z <- a %>% scores(type ="z")
+outliers_CARBON <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="CARBON")
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for HYDROGEN CYANIDE
+a <- subset(dd$Value, dd$`Parameter Reported As`=="HYDROGEN CYANIDE")
+z <- a %>% scores(type ="z")
+outliers_HYDROGENCYANIDE <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="HYDROGEN CYANIDE")
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for PHOSPHORUS
+a <- subset(dd$Value, dd$`Parameter Reported As`=="PHOSPHORUS")
+z <- a %>% scores(type ="z")
+outliers_PHOSPHORUS <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="PHOSPHORUS")
+
+ggplot(data=b, aes(y= b$Value,  color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for H2S
+a <- subset(dd$Value, dd$`Parameter Reported As`=="H2S")
+z <- a %>% scores(type ="z")
+outliers_H2S <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="H2S")
+
+ggplot(data=b, aes(y= b$Value,  color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for PHENOL
+a <- subset(dd$Value, dd$`Parameter Reported As`=="PHENOL")
+z <- a %>% scores(type ="z")
+outliers_PHENOL <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="PHENOL")
+
+ggplot(data=b, aes(y= b$Value,  color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for OXYGEN
+a <- subset(dd$Value, dd$`Parameter Reported As`=="OXYGEN")
+z <- a %>% scores(type ="z")
+outliers_OXYGEN <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="OXYGEN")
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for SO4
+a <- subset(dd$Value, dd$`Parameter Reported As`=="SO4")
+z <- a %>% scores(type ="z")
+outliers_SO4 <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="SO4")
+
+ggplot(data=b, aes(y= b$Value,  color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for ARSENIC
+a <- subset(dd$Value, dd$`Parameter Reported As`=="ARSENIC")
+z <- a %>% scores(type ="z")
+outliers_ARSENIC <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Reported As`=="ARSENIC")
+
+ggplot(data=b, aes(y= b$Value,  color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for FLOW
+a <- subset(dd$Value, dd$`Parameter Name`=="FLOW")
+z <- a %>% scores(type ="z")
+outliers_FLOW <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Name`=="FLOW")
+
+ggplot(data=b, aes(y= b$Value,  color = Sector)) + geom_boxplot() +theme_bw() +ylab("value, m3/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for PH
+a <- subset(dd$Value, dd$`Parameter Name`=="PH (-LOG H+ CONCN)" )
+z <- a %>% scores(type ="z")
+outliers_PH <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Name`=="PH (-LOG H+ CONCN)" )
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("pH") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for CHLORIDE
+a <- subset(dd$Value, dd$`Parameter Name`=="CHLORIDE,         UNFIL.REAC" )
+z <- a %>% scores(type ="z")
+outliers_CHLORIDE<- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Name`=="CHLORIDE,         UNFIL.REAC" )
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("CHLORIDE, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for TOTAL TOXIC
+a <- subset(dd$Value, dd$`Parameter Name`=="TOTAL TOXIC EQUIVALENT" )
+z <- a %>% scores(type ="z")
+outliers_TOXIC <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Name`=="TOTAL TOXIC EQUIVALENT" )
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("TOTAL TOXIC, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for FLUORIDE
+a <- subset(dd$Value, dd$`Parameter Name`=="FLUORIDE, UNFILTERED REACTIVE" )
+z <- a %>% scores(type ="z")
+outliers_FLUORIDE <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Name`=="FLUORIDE, UNFILTERED REACTIVE" )
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("FLUORIDE, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+
+```{r, fig.width=8, fig.height=4, message=FALSE, warning=FALSE}
+# for PARTICLE
+a <- subset(dd$Value, dd$`Parameter Name`=="RESIDUE, PARTICULATE" )
+z <- a %>% scores(type ="z")
+outliers_PARTICLE <- a[which(abs(z)>3)]
+
+b <- subset(dd, dd$`Parameter Name`=="RESIDUE, PARTICULATE" )
+
+ggplot(data=b, aes(y= b$Value, color = Sector)) + geom_boxplot() +theme_bw() +ylab("PARTICLE, kg/day") +xlab("Sector") + theme(axis.text.x = element_blank())
+```
+## Decision about the existance of outliers
+This visualization strategy helps to see which sector is producing what types of industrial discharge as well as have an understanding about the situations of the outliers!
+<br>
+<br>
+Since these outliers come from site measurements and can reflect real spikes and fluctuations of various chemical discharges, the outliers **are not being eliminated** from the dataset.
+<br>
+<br>
+# Qualitative feature selection
+Well, our target parameter is BOD (biological oxygen demand) reported as oxygen, and it only appears in couple Sectors. So it makes sense to explore those sectors for other parameters and choose them as base for feature selection.
+```{r, message=FALSE, warning=FALSE}
+a <- unique(subset(dd$`Parameter Name`, dd$Sector == "ELECTRIC POWER GENERATION"))
+b <- unique(subset(dd$`Parameter Name`, dd$Sector == "METAL CASTING"))
+c <- unique(subset(dd$`Parameter Name`, dd$Sector == "PULP AND PAPER"))
+d <- c(a, b, c)
+unique(d)
+```
+## Feature engineering and reshaping the dataset using pivot-wider
+Well, the above parameters are the parameters to explore through for **feature selection!**
+<br>
+
+```{r, message=FALSE, warning=FALSE}
+dd_feature <- subset(dd, dd$`Parameter Name`==unique(d))
+names(dd_feature)[names(dd_feature)=="Parameter Name"] <- "ParameterName"
+names(dd_feature)[names(dd_feature)=="Component Type"] <- "ComponentType"
+names(dd_feature)[names(dd_feature)=="Unit of Measure"] <- "Unit"
+ddd <- dd_feature %>%
+  dplyr::select(Sector, Municipality, Date, ParameterName, Frequency, ComponentType, Value, Unit) %>%
+  distinct() %>%
+  dplyr::group_by(Date, ParameterName, Unit) %>%
+  dplyr::summarise(
+    m = mean(Value, na.rm=TRUE)
+  ) %>%
+  pivot_wider(names_from = ParameterName, values_from = m)
+```
+
+Renaming the columns to avoid future problems!
+```{r, message=FALSE, warning=FALSE}
+
+names(ddd)[names(ddd)=="SOLVENT EXTRACTABLES" ] <- "Solvent"
+names(ddd)[names(ddd)=="ALUMINIUM, UNFILTERED TOTAL" ] <- "Aluminum"
+names(ddd)[names(ddd)=="IRON,     UNFILTERED TOTAL" ] <- "Iron"
+names(ddd)[names(ddd)=="PHOSPHORUS,UNFILTERED TOTAL" ] <- "Phosphorus"
+names(ddd)[names(ddd)=="RESIDUE, PARTICULATE" ] <- "Residue"
+names(ddd)[names(ddd)=="AMMONIUM+AMMONIA, TOTAL   FILTER.REAC" ] <- "Ammunium"
+names(ddd)[names(ddd)=="BIOCHEMICAL OXYGEN DEMAND,  5 DAY,  TOTAL DEMAND" ] <- "BOD"
+names(ddd)[names(ddd)=="PH (-LOG H+ CONCN)" ] <- "pH"
+names(ddd)[names(ddd)=="CARBON, DISSOLVED ORGANIC" ] <- "Carbon"
+names(ddd)[names(ddd)=="COPPER,   UNFILTERED TOTAL" ] <- "Copper"
+names(ddd)[names(ddd)=="PHENOLICS, UNFILTERED REACTIVE" | names(ddd)=="PHENOL"] <- "Phenol"
+names(ddd)[names(ddd)=="ZINC,  UNFILTERED TOTAL"  ] <- "Zinc"
+names(ddd)[names(ddd)=="CHLOROFORM  CHCL3" ] <- "Chloroform"
+names(ddd)[names(ddd)=="CYANIDE, AVAIL, UNFIL.REAC" ] <- "Cyanide"
+names(ddd)[names(ddd)=="TOLUENE         C7H8" ] <- "Toluene"
+names(ddd)[names(ddd)=="SPECIFIC CONDUCTANCE" ] <- "SpecificConductance"
+names(ddd)[names(ddd)=="2,3,7,8 - T4CDD" ] <- "T4CDD"
+names(ddd)[names(ddd)=="2,3,7,8 - T4CDF" ] <- "T4CDF"
+names(ddd)[names(ddd)=="TOTAL TOXIC EQUIVALENT" ] <- "TotalToxic"
+names(ddd)[names(ddd)=="CHROMIUM, UNFILTERED TOTAL"  ] <- "Chromium"
+names(ddd)[names(ddd)=="SILVER,   UNFILTERED TOTAL" ] <- "Silver"
+names(ddd)[names(ddd)=="ADSORBABLE ORGANIC HALIDE" ] <- "Halide"
+ddd <- ddd[,-12]
+names(ddd)
+```
+
+```{r, message=FALSE, warning=FALSE}
+head(ddd)
+```
+
+
+Great!
+```{r, message=FALSE, warning=FALSE}
+ddd_fs <- ddd[, -c(1:2)]
+sapply((ddd_fs), class)
+```
+# Quantitative feature selection
+Awesome!
+Let's try the first feature selection strategy: Filter-based method:
+Since the reshaped dataset includes NAs, I first explore the dataset without imputing the NAs using the below lines of code:
+```{r, message=FALSE, warning=FALSE, fig.width=12, fig.height=8}
+corr <- cor(ddd_fs, use="pairwise.complete.obs")
+corrplot(corr, na.label = " ")
+```
+## NAs in the reshaped dataset
+Since, I have created a new dataset, and it contains lots of NAs, let's explore the NAs again!
+This shows the **percentages of NAs within each attribute**:
+```{r, message=FALSE, warning=FALSE}
+#missing values
+p <- function(x){sum(is.na(x))/length(x)*100}
+apply(ddd_fs, 2, p)
+
+```
+
+
+## NA-imputation
+
+Imputing missing values by Random Forest
+```{r, message=FALSE, warning=FALSE}
+ddd_imp <- missRanger(
+  ddd_fs, 
+  pmm.k = 3,
+  num.trees = 1000,
+  seed=820
+)
+head(ddd_imp)
+```
+
+# Splitting the dataset to taining and testing sets
+Now, splitting my dataset to training and testing:
+
+```{r, message=FALSE, warning=FALSE}
+require(caTools)
+set.seed(820)
+sample <- sample.split(ddd_imp$BOD, SplitRatio = 0.75)
+ddd_imp_train <- subset(ddd_imp, sample == TRUE)
+ddd_imp_test <- subset(ddd_imp, sample == FALSE)
+```
+
+
+
+## Normality test
+```{r, message=FALSE, warning=FALSE}
+shapiro.test(ddd_imp_train$BOD)
+```
+The results from Shapiro-Wilk normality test indicates that the dataset is highly-skewed!
+<br>
+<br>
+Due to the skewed-dataset, I use Spearman cor test for imputed dataset.
+
+# Filter-based feature selection
+Now, let's try again the correlation analysis with imputed values! :)
+This belongs to Filter-based methods family:
+```{r, message=FALSE, warning=FALSE, , fig.width=12, fig.height=8}
+corr <- cor(ddd_imp_train, method = "spearman")
+corrplot(corr)
+```
+
+
+So, it seems BOD has strong positive correlation with Cyanide, and then Ammunium, Halide, Carbon, Aluminum and negative correlation with Chloroform and Toluene.
+<br>
+To see the numbers using cor analysis:
+```{r, message=FALSE, warning=FALSE, , fig.width=20, fig.height=16}
+corr <- cor(ddd_imp_train, method = "spearman")
+corrplot(corr, addCoef.col = "black", method = "square", number.cex = 1.5)
+```
+So, based on correlation analysis, Flow, Aluminium, Zinc, Chloroform, Silver, Toluene, pH, Residue are amongst the most important contributors.
+
+# Wrapper-based feature selection
+Let's perform a wrapper-based feature selection technique:
+
+```{r, message=FALSE, warning=FALSE}
+boruta_result <- Boruta(BOD~., data=ddd_imp_train, , doTrace=0)
+print(boruta_result)
+```
+
+To see the full list of the selected parameters:
+
+```{r, message=FALSE, warning=FALSE}
+boruta_result[1]
+
+```
+Amazing! :)
+
+```{r, message=FALSE, warning=FALSE}
+# eval <- wrapperEvaluator("knn")
+# search <- searchAlgorithm("sequentialForwardSelection")
+# res <- featureSelection(ddd_imp_train, "BOD", search, eval)
+# res$bestFeatures
+```
+
+
+Now, I'll try a Filter-based feature selection technique: 
+```{r, message=FALSE, warning=FALSE}
+# eval <- filterEvaluator('determinationCoefficient')
+# search <- searchAlgorithm("sequentialForwardSelection")
+# res <- featureSelection(ddd_imp_train, "BOD", search, eval)
+# res$bestFeatures
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+# evaluator_1 <- filterEvaluator('determinationCoefficient')
+# evaluator_2 <- filterEvaluator('ReliefFeatureSetMeasure')
+# 
+# hybridSearcher <- hybridSearchAlgorithm('LCC')
+# 
+# results <- hybridFeatureSelection(ddd_imp_train, 'BOD', hybridSearcher, evaluator_1, evaluator_2)
+# results$bestFeatures
+
+```
+## lessons learned :)
+The three more methods (please see the above trials) for feature selection have failed - **what I learn though** is that not all feature selection works for all datasets. depending on different data characteristics (normality/skewness and classtype, etc.) - very useful article: https://machinelearningmastery.com/feature-selection-with-real-and-categorical-data/
+and also, https://www.sheffield.ac.uk/polopoly_fs/1.885202!/file/95_Normality_Check.pdf
+<br>
+
+```{r, message=FALSE, warning=FALSE, , fig.width=20, fig.height=16, fig.cap="Ref: https://machinelearningmastery.com/feature-selection-with-real-and-categorical-data/" }
+knitr::include_graphics("/Users/zeinabkhansari/Desktop/cap1.png")
+
+```
+
+# Final decision on feature selection
+<br>
+<br>
+Well, based on the results from Filter-based (Spearman correlation analysis) and Wrapper-based (Boruta) feature selection methods, I am choosing:
+<br>
+Aluminum 
+<br>
+Chloroform
+<br>
+FLOW
+<br>
+Residue
+<br>
+Zinc
+<br>
+Silver
+<br>
+pH
+<br>
+as attributes that impacts the BOD (Biological Oxygen Demand)!
+
