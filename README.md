@@ -1,6 +1,8 @@
 # Industrial_Wastewater_Discharges 
 uses R language (for now)!
+
 This project is an excellent platform for me to bring my theoretical knowledge to the practical level and learn along the way.
+
 The first few files that have been uploaeded include:
 - data integration
 - preprocessing and cleaning
