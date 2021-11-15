@@ -10,6 +10,8 @@ The first few files that have been uploaeded include:
 -  feature selection
 
 As some of the **highlights of my learning process**, so far, I can mention about 
-- why some imputation techniques are not suitable for some datasets, 
-- how the skewness of the dataset can interfere with feature selection techniques and why some feature selection methods are not working on some datasets.
+- how to create a wide dataset out of a narrow, long, and complicated dataset?
+- how to adjust data engineering to keep the contrast between attributes for feature selection?
+- why some imputation techniques are not suitable for some datasets?
+- how the skewness of the dataset can interfere with feature selection techniques and why some feature selection methods are not working on some datasets? 
 
