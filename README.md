@@ -3,7 +3,7 @@ uses R language (for now)!
 
 This project is an excellent platform for me to bring my theoretical knowledge to the practical level and learn along the way.
 
-The main puepose of this project is to build a predictive model as an early warning system that can forecast the amount of Biological Oxygen Demand (BOD) in industrail wastewater discharge based on the historical data.
+The main puepose of this project is to build a predictive model as an early warning system that can forecast the amount of Biological Oxygen Demand (BOD) in industrail wastewater discharge based on historical data.
 
 The first few files that have been uploaeded include:
 - data integration
