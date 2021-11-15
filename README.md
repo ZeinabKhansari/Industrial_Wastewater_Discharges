@@ -8,6 +8,7 @@ The first few files that have been uploaeded include:
 -  data engineering and reshaping (pivot_wider)
 - exploratory data analysis
 -  feature selection
+
 As some of the **highlights of my learning process**, so far, I can mention about 
 - why some imputation techniques are not suitable for some datasets, 
 - how the skewness of the dataset can interfere with feature selection techniques and why some feature selection methods are not working on some datasets.
