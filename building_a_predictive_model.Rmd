@@ -1,0 +1,407 @@
+---
+output: html_document
+---
+
+<center>
+<h1> 
+Integration of Artificial Intelligence into Wastewater Treatment Modeling - Building A Model
+</h1>
+</center>
+<br>
+<center>
+<h3> 
+Student name and ID: Zeinab Khansari, 501076000 <br>
+Supervisor: Dr. Tamer Abdou
+
+</h3>
+</center>
+<br>
+<br>
+<center>
+<h4> 
+Capstone Project on Ontario Ministry of the Environment, Conservation and Parks<br>
+Industrial Wastewater Discharges (MISA dataset)
+</h4>
+</center>
+<br>
+<center>
+<h4> 
+`r format(Sys.time(), "%d %B, %Y")`
+</h4>
+</center>
+
+<br>
+
+***
+
+<br>
+# Installing libraries and setting directory
+```{r, message=FALSE, warning=FALSE}
+
+library(lubridate)
+library(EnvStats)
+library(tidyr)
+library(pillar)
+library(stringi)
+library(readr)
+library(tidyverse)
+library(purrr)
+library(plyr)
+library(tibble)
+library(rlang)
+library(readxl)
+library(anytime)
+library(ggplot2)
+library(devtools)
+library(ggpubr)
+library(reshape2)
+library(dplyr)
+library(Hmisc)
+library(outliers)
+library(magrittr)
+library(mlbench)
+library(caret)
+library(stats)
+library(corrplot)
+library(TH.data)
+library(Boruta)
+library(MTS)
+library(corrplot)
+library(mice)
+library(VIM)
+library(missRanger)
+library(caTools)
+library(FSinR)
+library(olsrr)
+library(knitr)
+library(randomForest)
+library(e1071)
+library(rpart)
+library(rpart.plot)
+library(lmvar)
+library(MASS)
+library(DAAG)
+
+options(stringAsFactors=FALSE, warnings=FALSE)
+
+setwd("/Users/zeinabkhansari/Desktop/Capstone")
+```
+
+
+Reading file and splitting the dataset into train and test - same as what I've done before feature selection:
+
+```{r, message=FALSE, warning=FALSE}
+ddd_imp <- read.csv("/Users/zeinabkhansari/Desktop/Capstone/ddd_imp.csv")
+ddd_imp2 <- log10(ddd_imp)
+
+ddd_imp2[mapply(is.infinite, ddd_imp2)] <- 0
+
+ddd_imp <- ddd_imp2
+# implementing feature selection and creating a new dataset
+ddd_imp <- ddd_imp %>%
+  dplyr::select(BOD, Aluminum, FLOW, Silver, Phenol, Zinc, Chloroform, Toluene, pH, Residue, Ammunium, Cyanide, Phosphorus, Solvent)
+
+require(caTools)
+set.seed(820)
+sample <- sample.split(ddd_imp$BOD, SplitRatio = 0.8)
+ddd_imp_train <- subset(ddd_imp, sample == TRUE)
+ddd_imp_test <- subset(ddd_imp, sample == FALSE)
+
+```
+
+
+# Random Forest - Mode1 one
+The dataset I am building a model for is highly skewed and Random Forest is a resilient model while the dataset is skewed.
+However, there are couple parameters in a RF model that need to be optimized/tuned using **K-fold cross validation** including:
+- number of mtry
+- number of maxnodes
+- number of ntrees
+
+So, I create a train control formula trying to find the best mtry using 10-fold cross validation:
+```{r, message=FALSE, warning=FALSE}
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="random")
+set.seed(820)
+x <- ddd_imp_train[-1]
+mtry <- sqrt(ncol(x))
+rf_random <- train(BOD~., data=ddd_imp_train, method="rf", metric="Rsquared", tuneLength=15, trControl=control)
+print(rf_random)
+plot(rf_random)
+```
+Excellent!
+seems the best mtry is mtry=6 then!
+
+
+```{r, message=FALSE, warning=FALSE}
+print(rf_random)
+```
+
+
+Now, let's search the optimum number of trees:
+```{r, message=FALSE, warning=FALSE}
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="random")
+tunegrid <- expand.grid(.mtry=c(sqrt(ncol(x))))
+modellist <- list()
+for (ntree in c(500, 1000, 2000, 3000, 4000)) {
+	set.seed(820)
+	fit <- train(BOD~., data=ddd_imp_train, method="rf", metric="Rsquared", tuneGrid=tunegrid, trControl=control, ntree=ntree)
+	key <- toString(ntree)
+	modellist[[key]] <- fit
+}
+# compare results
+results <- resamples(modellist)
+
+dotplot(results)
+```
+
+```{r, message=FALSE, warning=FALSE}
+summary(results)
+```
+
+It seems the default number of trees, ntrees = 1000 or 2000 has provided the best results already and increasing ntrees doesn't do much!
+
+
+Exploring the number of maxnodes now:
+choosing ntree=1000 as it takes so long with 2000 trees
+```{r, message=FALSE, warning=FALSE}
+store_maxnode <- list()
+best_mtry = 6 # as per previous analysis
+best_ntree = 1000 # as per previous analysis
+tune_grid <- expand.grid(.mtry = best_mtry)
+for (maxnodes in c(10:20)) {
+  set.seed(820)
+  rf_maxnode <- train(BOD~., data = ddd_imp_train, method = "rf", metric = "Rsquared", trControl=control, importance = TRUE, nodesize = 5, maxnodes = maxnodes, ntree = best_ntree)
+  itteration <- toString(maxnodes)
+  store_maxnode[[itteration]] <- rf_maxnode
+}
+
+results_maxnodes <- resamples(store_maxnode)
+summary(results_maxnodes)
+```
+Awesome!
+Now, I feel pretty confident to say the best maxnode is 19!
+<br>
+Now, let's train the dataset with the optimized (tuned) RF variables:
+
+let's increase the number of trees:
+```{r, message=FALSE, warning=FALSE}
+#based on previous analysis
+best_mtry = 6
+best_ntree = 1000
+best_maxnodes = 19
+
+fit_rf <- train(BOD~., data = ddd_imp_train, method = "rf", metric = "Rsquared", trControl=control, tuneGrid = tune_grid, nodesize = 5, maxnodes = best_maxnodes, ntree = best_ntree)
+fit_rf
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+prediction <- predict(fit_rf, ddd_imp_test)
+```
+
+```{r, message=FALSE, warning=FALSE}
+actual_predict <- data.frame(actual = ddd_imp_test$BOD, predicted = prediction)
+ggplot(actual_predict, aes(x=actual, y=predicted))+geom_jitter(alpha = 0.3, col="black") +theme_bw() +geom_abline(slope=1, intercept = 0, linetype="dotted", col="darkred")
+```
+
+examining the performance of model in predicting the data using anova table:
+```{r, message=FALSE, warning=FALSE}
+x1 <- lm(ddd_imp_test$BOD~prediction)
+anova(x1)
+```
+
+# Decision Tree for Regression - Model two
+
+feature selection comes with decision tree model
+
+```{r, message=FALSE, warning=FALSE}
+fit <- rpart(BOD~., method = "anova", data=ddd_imp_train, )
+
+# plot(fit, uniform = TRUE, main = "BOD decision tree using regression")
+# text(fit, cex = 0.7)
+```
+
+```{r, message=FALSE, warning=FALSE}
+rpart.plot(fit, main = "BOD decision tree using regression")
+```
+
+
+```{r, message=FALSE, warning=FALSE, ig.width=8, fig.height=4}
+plotcp(fit, main="size of trees")
+```
+I'll force the cp to be zero to increase the size of trees to see if I can further reduce the error:
+
+```{r, message=FALSE, warning=FALSE}
+fitt <- rpart(BOD~., data=ddd_imp_train, method = "anova", control = list(cp=0, xval=10))
+```
+
+```{r, message=FALSE, warning=FALSE}
+plotcp(fitt)
+abline(v=4, lty= "dashed")
+```
+
+```{r, message=FALSE, warning=FALSE}
+a <- as.data.frame(fitt$cptable)
+a
+```
+
+It seems that decreasing cp decreased the cross validated error and min xerror relates to number of trees = 14
+
+```{r, message=FALSE, warning=FALSE}
+min(a$xerror)
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(fit)
+```
+
+```{r, message=FALSE, warning=FALSE}
+Predict2 <- predict(fit, ddd_imp_test, method = "anova")
+```
+
+```{r, message=FALSE, warning=FALSE}
+actual_predict <- data.frame(actual = ddd_imp_test$BOD, predicted = Predict2)
+ggplot(actual_predict, aes(x=actual, y=predicted))+geom_jitter(alpha = 0.3, col="black") +theme_bw() +geom_abline(slope=1, intercept = 0, linetype="dotted", col="darkred")
+```
+
+
+
+To hypertune the decision tree parameters, I create a hyper_grid matrix:
+
+```{r, message=FALSE, warning=FALSE}
+hyper_grid <- expand.grid(
+  minsplit = seq(5, 20, 1),
+  maxdepth = seq(8, 15, 1)
+)
+nrow(hyper_grid)
+```
+
+```{r, message=FALSE, warning=FALSE}
+models <- list()
+
+for (i in 1:nrow(hyper_grid)){
+  
+  minsplit <- hyper_grid$minsplit[i]
+  maxdepth <- hyper_grid$maxdepth[i]
+    models[[i]] <- rpart(BOD~., data = ddd_imp_train, method = "anova", control = list(minsplit = minsplit, maxdepth = maxdepth))
+}
+```
+
+optimization functions:
+```{r, message=FALSE, warning=FALSE}
+#optimal cp
+get_cp <- function(x) {
+  min <- which.min(x$cptable[, "xerror"])
+  cp <- x$cptable[min, "CP"]
+}
+
+#minimum error
+get_min_error <- function(x) {
+  min <- which.min(x$cptable[, "xerror"])
+  xerror <- x$cptable[min, "xerror"]
+}
+
+
+hyper_grid %>%
+  mutate(
+    cp = purrr::map_dbl(models, get_cp),
+    error = purrr::map_dbl(models, get_min_error)
+  ) %>%
+  arrange(error) %>%
+  top_n(-3, wt= error)
+
+```
+
+<br>
+Now, optimized decision tree fitting model:
+```{r, message=FALSE, warning=FALSE}
+optimized_dc <- rpart(BOD~., data = ddd_imp_train, method = "anova", control = list(minsplit = 13, maxdepth = 15, cp=0.01316227))
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+a <- as.data.frame(optimized_dc$cptable)
+a
+```
+
+```{r, message=FALSE, warning=FALSE}
+min(a$xerror)
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+Predict3 <- predict(optimized_dc, ddd_imp_test, method = "anova")
+```
+
+```{r, message=FALSE, warning=FALSE}
+actual_predict <- data.frame(actual = ddd_imp_test$BOD, predicted = Predict3)
+ggplot(actual_predict, aes(x=actual, y=predicted))+geom_jitter(alpha = 0.3, col="black") +theme_bw() +geom_abline(slope=1, intercept = 0, linetype="dotted", col="darkred")
+```
+Testing how the model predics the values using anova table:
+```{r, message=FALSE, warning=FALSE}
+x1 <- lm(ddd_imp_test$BOD~Predict3)
+anova(x1)
+```
+
+***
+
+# linear Regression - Model three
+
+
+```{r, message=FALSE, warning=FALSE}
+data_ctrl <- trainControl(method = "cv", number = 10)
+linmodel <- train(BOD~., data=ddd_imp, trControl = data_ctrl, method = "lm", na.action = na.pass) # this is great that it can handle missing values although I have not any!
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+linmodel
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+linmodel$finalModel
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+linmodel$resample
+```
+
+
+```{r, message=FALSE, warning=FALSE, ig.width=10, fig.height=6, }
+# cross validation with linear regression
+
+Out <- DAAG::CVlm(data = ddd_imp, form.lm = formula(BOD~.), m=10, dots = FALSE, seed = 820)
+Out$cvpred
+```
+
+```{r, message=FALSE, warning=FALSE}
+pred <- Out$cvpred
+Predict4 <- pred[455:565]
+```
+
+```{r, message=FALSE, warning=FALSE}
+actual_predict <- data.frame(actual = ddd_imp_test$BOD, predicted = Predict4)
+ggplot(actual_predict, aes(x=actual, y=predicted))+geom_jitter(alpha = 0.3, col="black") +theme_bw()+geom_abline(slope=1, intercept = 0, linetype="dotted", col="darkred")
+```
+
+
+Here I investigate how the model predicted the values using anova table:
+```{r, message=FALSE, warning=FALSE}
+x1 <- lm(ddd_imp_test$BOD~Predict4)
+anova(x1)
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+```
+
+
