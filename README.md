@@ -22,3 +22,5 @@ As some of the **highlights of my learning process**, so far, I can mention abou
 The general workflow can be described as:
 
 data integration -> preprocessing -> exploratory data analysis -> feature selection -> bulding model -> model evaluation -> model interpretation
+
+For the modeling part (building_a_predictive_model) I implemented 10-fold cross validation on three different techniques including Random Forest, Decision Tree, and Linear Regression.
